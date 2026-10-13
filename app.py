@@ -162,7 +162,6 @@ if uploaded_files:
                     df_base_raw = df_base_raw[df_base_raw['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
                     df_comp_raw = df_comp_raw[df_comp_raw['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
 
-                # ดึงประเภทลูกค้าติดมาด้วยโดยใช้การ mode หรือ first จากข้อมูลทั้งสองฝั่ง
                 cust_type_map_base = df_base_raw.groupby('custcode')['ประเภทลูกค้า'].first().to_dict()
                 cust_type_map_comp = df_comp_raw.groupby('custcode')['ประเภทลูกค้า'].first().to_dict()
                 
@@ -175,7 +174,6 @@ if uploaded_files:
                 
                 merged_cust = pd.merge(base_cust, comp_cust, on=['custcode', 'custname'], how='outer').fillna(0)
                 
-                # แมปประเภทลูกค้า (ถ้าปีปัจจุบันไม่มีให้เอาจากปีก่อน)
                 merged_cust['ประเภทลูกค้า'] = merged_cust['custcode'].map(cust_type_map_comp)
                 merged_cust['ประเภทลูกค้า'] = merged_cust['ประเภทลูกค้า'].fillna(merged_cust['custcode'].map(cust_type_map_base)).fillna('ไม่ระบุ')
                 
@@ -209,7 +207,7 @@ if uploaded_files:
                 c3.metric("📈 ลูกค้าเติบโตขึ้น (Growth)", f"{n_growth:,} ราย")
                 c4.metric("📉 ลูกค้ายอดลดลง (Decline)", f"{n_decline:,} ราย")
                 
-                # --- เพิ่มส่วนสรุปแยกตามกลุ่ม/ประเภทลูกค้า (A1, A2, B1 ฯลฯ) ---
+                # --- สรุปแยกตามกลุ่ม/ประเภทลูกค้า (Fix ชื่อคอลัมน์ให้ตรงกัน) ---
                 st.markdown("---")
                 st.subheader("📊 สรุปจำนวนลูกค้าและการเคลื่อนไหว แยกตามประเภทลูกค้า (Customer Type Breakdown)")
                 
