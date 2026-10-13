@@ -74,8 +74,8 @@ if uploaded_files:
             "🏢 เปรียบเทียบรายสาขา (Cash vs Credit)"
         ])
         
-        # จัดเรียงชื่อไฟล์/ปี จากเก่าไปใหม่เสมอ (เช่น 2024 -> 2025 -> 2026)
-        file_names = sorted(list(dfs_dict.keys()))
+        # จัดเรียงชื่อไฟล์/ปี จากเก่าไปใหม่เสมอ (บังคับเรียงตามตัวอักษรชื่อไฟล์ เช่น 2024 -> 2025 -> 2026)
+        file_names = sorted(list(dfs_dict.keys()), key=lambda x: str(x))
         
         # --- TAB 1: ภาพรวม & แยก Cash/Credit รายปี ---
         with tab1:
@@ -119,7 +119,7 @@ if uploaded_files:
                 st.dataframe(df_file_sum, use_container_width=True)
             
             st.divider()
-            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (แสดงเทรนด์ข้ามปี จากเก่าไปใหม่)")
+            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (เรียงเทรนด์จากปีเก่าไปปีใหม่)")
             
             if len(file_names) >= 1:
                 selected_top_file = st.selectbox("เลือกปีหลักที่ใช้จัดอันดับ Top 20:", file_names, index=len(file_names)-1, key="top_20_file")
@@ -173,7 +173,7 @@ if uploaded_files:
                 display_trend['สาขา'] = pivot_trend['saleareacode']
                 display_trend['ประเภท'] = pivot_trend['ประเภทลูกค้า']
                 
-                # วนลูปเรียงตามลำดับปีจากเก่าไปใหม่เป๊ะๆ
+                # บังคับเรียงคอลัมน์ปีจากซ้ายไปขวาตามลำดับ file_names ที่เรียบ 2024 -> 2025 -> 2026 เป๊ะๆ
                 for y in file_names:
                     if y in pivot_trend.columns:
                         display_trend[f'ยอดซื้อ ({y})'] = pivot_trend[y].apply(format_smart)
