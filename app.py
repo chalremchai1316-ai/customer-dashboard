@@ -208,7 +208,7 @@ if uploaded_files:
                 else:
                     display_df = merged_cust.copy()
                     
-                # Sort จากผลต่างยอดซื้อจริง (มากไปน้อย)
+                # จัดเรียงตามผลต่างยอดซื้อจริง (จากมากไปน้อย) ให้ถูกต้องเสมอ
                 display_df = display_df.sort_values(by='ผลต่างยอดซื้อ', ascending=False)
                 
                 display_cust_table = pd.DataFrame()
@@ -219,7 +219,7 @@ if uploaded_files:
                 display_cust_table['Cash ส่วนต่าง (Δ)'] = display_df['Diff_Cash'].apply(format_smart)
                 display_cust_table['Credit (ปีก่อน -> ปัจจุบัน)'] = display_df['Credit_ปีก่อน'].apply(format_smart) + " -> " + display_df['Credit_ปัจจุบัน'].apply(format_smart)
                 display_cust_table['Credit ส่วนต่าง (Δ)'] = display_df['Diff_Credit'].apply(format_smart)
-                display_cust_table['ยอดรวมส่วนต่าง'] = display_df['ผลต่างยอดซื้อ'].apply(format_smart)
+                display_cust_table['ยอดรวมส่วนต่าง (Δ)'] = display_df['ผลต่างยอดซื้อ'].apply(format_smart)
                 
                 st.dataframe(display_cust_table, use_container_width=True)
             else:
@@ -259,8 +259,8 @@ if uploaded_files:
                 merged_grp['Diff_Credit'] = merged_grp['Credit_ปัจจุบัน'] - merged_grp['Credit_ปีก่อน']
                 merged_grp['Diff_Total'] = merged_grp['รวม_ปัจจุบัน'] - merged_grp['รวม_ปีก่อน']
                 
-                # Sort ตามยอดรวมปัจจุบันจากมากไปน้อย เพื่อให้เรียงลำดับถูกต้องเสมอ
-                merged_grp = merged_grp.sort_values(by='รวม_ปัจจุบัน', ascending=False)
+                # FIX: จัดเรียงตามยอดรวมส่วนต่าง (Diff_Total) จากมากไปน้อย (บวกมากสุด -> ติดลบมากสุด)
+                merged_grp = merged_grp.sort_values(by='Diff_Total', ascending=False)
                 
                 display_grp = pd.DataFrame()
                 display_grp['กลุ่มสินค้า'] = merged_grp['กลุ่มสินค้า']
@@ -268,7 +268,7 @@ if uploaded_files:
                 display_grp['Cash ส่วนต่าง (Δ)'] = merged_grp['Diff_Cash'].apply(format_smart)
                 display_grp['Credit (ปีก่อน -> ปัจจุบัน)'] = merged_grp['Credit_ปีก่อน'].apply(format_smart) + " -> " + merged_grp['Credit_ปัจจุบัน'].apply(format_smart)
                 display_grp['Credit ส่วนต่าง (Δ)'] = merged_grp['Diff_Credit'].apply(format_smart)
-                display_grp['ยอดรวมส่วนต่าง'] = merged_grp['Diff_Total'].apply(format_smart)
+                display_grp['ยอดรวมส่วนต่าง (Δ)'] = merged_grp['Diff_Total'].apply(format_smart)
                 
                 st.dataframe(display_grp, use_container_width=True)
             else:
@@ -308,8 +308,8 @@ if uploaded_files:
                 merged_branch['Diff_Credit'] = merged_branch['Credit_ปัจจุบัน'] - merged_branch['Credit_ปีก่อน']
                 merged_branch['Diff_Total'] = merged_branch['รวม_ปัจจุบัน'] - merged_branch['รวม_ปีก่อน']
                 
-                # Sort ตามยอดรวมปัจจุบันจากมากไปน้อย
-                merged_branch = merged_branch.sort_values(by='รวม_ปัจจุบัน', ascending=False)
+                # FIX: จัดเรียงตามยอดรวมส่วนต่าง (Diff_Total) จากมากไปน้อย (บวกมากสุด -> ติดลบมากสุด)
+                merged_branch = merged_branch.sort_values(by='Diff_Total', ascending=False)
                 
                 display_branch = pd.DataFrame()
                 display_branch['สาขา (Sales Area)'] = merged_branch['saleareacode']
@@ -317,7 +317,7 @@ if uploaded_files:
                 display_branch['Cash ส่วนต่าง (Δ)'] = merged_branch['Diff_Cash'].apply(format_smart)
                 display_branch['Credit (ปีก่อน -> ปัจจุบัน)'] = merged_branch['Credit_ปีก่อน'].apply(format_smart) + " -> " + merged_branch['Credit_ปัจจุบัน'].apply(format_smart)
                 display_branch['Credit ส่วนต่าง (Δ)'] = merged_branch['Diff_Credit'].apply(format_smart)
-                display_branch['ยอดรวมส่วนต่าง'] = merged_branch['Diff_Total'].apply(format_smart)
+                display_branch['ยอดรวมส่วนต่าง (Δ)'] = merged_branch['Diff_Total'].apply(format_smart)
                 
                 st.dataframe(display_branch, use_container_width=True)
             else:
