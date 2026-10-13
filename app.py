@@ -207,23 +207,30 @@ if uploaded_files:
                 c3.metric("📈 ลูกค้าเติบโตขึ้น (Growth)", f"{n_growth:,} ราย")
                 c4.metric("📉 ลูกค้ายอดลดลง (Decline)", f"{n_decline:,} ราย")
                 
-                # --- สรุปแยกตามกลุ่ม/ประเภทลูกค้า (Fix ชื่อคอลัมน์ให้ตรงกัน) ---
+                # --- สรุปแยกตามกลุ่ม/ประเภทลูกค้า (แบบปลอดภัยป้องกัน KeyError) ---
                 st.markdown("---")
                 st.subheader("📊 สรุปจำนวนลูกค้าและการเคลื่อนไหว แยกตามประเภทลูกค้า (Customer Type Breakdown)")
                 
                 type_summary = merged_cust.groupby('ประเภทลูกค้า').agg(
-                    จำนวนทั้งหมด=('custcode', 'count'),
-                    ลูกค้าใหม่=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าใหม่ (New)')),
-                    ลูกค้าที่หายไป=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าที่หายไป (Churned)')),
-                    เติบโตขึ้น=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าเติบโตขึ้น (Growth)')),
-                    ยอดลดลง=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้ายอดลดลง (Decline)')),
-                    ยอดรวมปีปัจจุบัน=('ยอดซื้อปีปัจจุบัน', 'sum')
+                    total_cust=('custcode', 'count'),
+                    new_cust=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าใหม่ (New)')),
+                    lost_cust=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าที่หายไป (Churned)')),
+                    growth_cust=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าเติบโตขึ้น (Growth)')),
+                    decline_cust=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้ายอดลดลง (Decline)')),
+                    total_rev=('ยอดซื้อปีปัจจุบัน', 'sum')
                 ).reset_index()
                 
-                type_summary = type_summary.sort_values(by='ยอดรวมปีปัจจุบัน', ascending=False)
-                type_summary['ยอดรวมปีปัจจุบัน (Smart)'] = type_summary['ยอดรวมปีปัจจุบัน'].apply(format_smart)
+                type_summary = type_summary.sort_values(by='total_rev', ascending=False)
                 
-                display_type_summary = type_summary[['ประเภทลูกค้า', 'จำนวนทั้งหมด', 'ลูกค้าใหม่', 'ลูกค้าที่หายไป', 'เติบโตขึ้น', 'ยอดลดลง', 'ยอดรวมปีปัจจุบัน (Smart)']]
+                display_type_summary = pd.DataFrame()
+                display_type_summary['ประเภทลูกค้า'] = type_summary['ประเภทลูกค้า']
+                display_type_summary['จำนวนทั้งหมด'] = type_summary['total_cust']
+                display_type_summary['ลูกค้าใหม่'] = type_summary['new_cust']
+                display_type_summary['ลูกค้าที่หายไป'] = type_summary['lost_cust']
+                display_type_summary['เติบโตขึ้น'] = type_summary['growth_cust']
+                display_type_summary['ยอดลดลง'] = type_summary['decline_cust']
+                display_type_summary['ยอดรวมปีปัจจุบัน'] = type_summary['total_rev'].apply(format_smart)
+                
                 st.dataframe(display_type_summary, use_container_width=True)
                 
                 st.markdown("---")
