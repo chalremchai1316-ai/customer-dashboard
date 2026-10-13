@@ -122,14 +122,18 @@ if uploaded_files:
                         
                 merged_cust['สถานะลูกค้า'] = merged_cust.apply(classify_customer, axis=1)
                 merged_cust['ผลต่างยอดซื้อ'] = merged_cust['ยอดซื้อปีปัจจุบัน'] - merged_cust['ยอดซื้อปีก่อน']
-                
-                # คำนวณ % Growth (ป้องกันการหารด้วย 0)
-                merged_cust['% Growth'] = np.where(
-                    merged_cust['ยอดซื้อปีก่อน'] > 0, 
-                    ((merged_cust['ยอดซื้อปีปัจจุบัน'] - merged_cust['ยอดซื้อปีก่อน']) / merged_cust['ยอดซื้อปีก่อน']) * 100, 
-                    100.0 if merged_cust['ยอดซื้อปีปัจจุบัน'] > 0 else 0.0
-                )
-                
+                   # คำนวณ % Growth (ป้องกันการหารด้วย 0 แบบปลอดภัย)
+   def calc_growth(row):
+       prev = row['ยอดซื้อปีก่อน']
+       curr = row['ยอดซื้อปีปัจจุบัน']
+       if prev > 0:
+           return ((curr - prev) / prev) * 100
+       elif curr > 0:
+           return 100.0
+       else:
+           return 0.0
+
+   merged_cust['% Growth'] = merged_cust.apply(calc_growth, axis=1)
                 # แปลงหน่วยเป็น Mb เพื่อการแสดงผล
                 merged_cust['ยอดปีก่อน (Mb)'] = merged_cust['ยอดซื้อปีก่อน'].apply(format_mb)
                 merged_cust['ยอดปีปัจจุบัน (Mb)'] = merged_cust['ยอดซื้อปีปัจจุบัน'].apply(format_mb)
