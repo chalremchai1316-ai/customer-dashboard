@@ -122,23 +122,25 @@ if uploaded_files:
                         
                 merged_cust['สถานะลูกค้า'] = merged_cust.apply(classify_customer, axis=1)
                 merged_cust['ผลต่างยอดซื้อ'] = merged_cust['ยอดซื้อปีปัจจุบัน'] - merged_cust['ยอดซื้อปีก่อน']
-                   # คำนวณ % Growth (ป้องกันการหารด้วย 0 แบบปลอดภัย)
-   def calc_growth(row):
-       prev = row['ยอดซื้อปีก่อน']
-       curr = row['ยอดซื้อปีปัจจุบัน']
-       if prev > 0:
-           return ((curr - prev) / prev) * 100
-       elif curr > 0:
-           return 100.0
-       else:
-           return 0.0
+                
+                # คำนวณ % Growth แบบปลอดภัยทีละแถว
+                def calc_growth(row):
+                    prev = row['ยอดซื้อปีก่อน']
+                    curr = row['ยอดซื้อปีปัจจุบัน']
+                    if prev > 0:
+                        return ((curr - prev) / prev) * 100
+                    elif curr > 0:
+                        return 100.0
+                    else:
+                        return 0.0
 
-   merged_cust['% Growth'] = merged_cust.apply(calc_growth, axis=1)
+                merged_cust['% Growth'] = merged_cust.apply(calc_growth, axis=1)
+                
                 # แปลงหน่วยเป็น Mb เพื่อการแสดงผล
                 merged_cust['ยอดปีก่อน (Mb)'] = merged_cust['ยอดซื้อปีก่อน'].apply(format_mb)
                 merged_cust['ยอดปีปัจจุบัน (Mb)'] = merged_cust['ยอดซื้อปีปัจจุบัน'].apply(format_mb)
                 merged_cust['ผลต่าง (Mb)'] = merged_cust['ผลต่างยอดซื้อ'].apply(format_mb)
-                merged_cust['% Growth'] = merged_cust['% Growth'].map('{:,.2f}%'.format)
+                merged_cust['% Growth Display'] = merged_cust['% Growth'].map('{:,.2f}%'.format)
                 
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("ลูกค้าใหม่", len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าใหม่ (New)']))
@@ -154,7 +156,7 @@ if uploaded_files:
                 else:
                     display_df = merged_cust
                     
-                final_display_cols = ['custcode', 'custname', 'สถานะลูกค้า', 'ยอดปีก่อน (Mb)', 'ยอดปีปัจจุบัน (Mb)', 'ผลต่าง (Mb)', '% Growth']
+                final_display_cols = ['custcode', 'custname', 'สถานะลูกค้า', 'ยอดปีก่อน (Mb)', 'ยอดปีปัจจุบัน (Mb)', 'ผลต่าง (Mb)', '% Growth Display']
                 st.dataframe(display_df[final_display_cols].sort_values(by='ผลต่างยอดซื้อ', ascending=False), use_container_width=True)
             else:
                 st.info("💡 กรุณาอัปโหลดไฟล์ CSV อย่างน้อย 2 ไฟล์ขึ้นไป เพื่อเปิดใช้งานฟังก์ชันวิเคราะห์ลูกค้าใหม่/ลูกค้าหาย")
