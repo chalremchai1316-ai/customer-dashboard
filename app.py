@@ -20,15 +20,13 @@ def format_smart(val):
     else:
         return f"{val:,.2f}"
 
-# --- ฟังก์ชันช่วยเรียงชื่อไฟล์ตามปี พ.ศ. หรือ ค.ศ. (เช่น 2024 -> 2025 -> 2026) ---
+# --- ฟังก์ชันช่วยเรียงชื่อไฟล์ตามปี (เช่น 2024 -> 2025 -> 2026) ---
 def sort_file_names(file_list):
     def extract_year(filename):
-        # ค้นหาตัวเลข 4 หลักที่เป็นปี (เช่น 2024, 2025, 2026 หรือ 2567, 2568) ในชื่อไฟล์
         found = re.findall(r'(20\d{2}|19\d{2}|25\d{2})', str(filename))
         if found:
             return int(found[0])
         return 0
-    # เรียงตามปีที่พบจากน้อยไปมาก ถ้าไม่พบให้เรียงตามชื่อตัวอักษรปกติ
     return sorted(file_list, key=lambda x: (extract_year(x) == 0, extract_year(x), str(x)))
 
 # --- 1. ส่วนอัปโหลดไฟล์ข้อมูล ---
@@ -86,7 +84,6 @@ if uploaded_files:
             "🏢 เปรียบเทียบรายสาขา (Cash vs Credit)"
         ])
         
-        # ใช้ฟังก์ชันจัดเรียงปีจากเก่าไปใหม่เป๊ะๆ (2024 -> 2025 -> 2026)
         file_names = sort_file_names(list(dfs_dict.keys()))
         
         # --- TAB 1: ภาพรวม & แยก Cash/Credit รายปี ---
@@ -185,7 +182,6 @@ if uploaded_files:
                 display_trend['สาขา'] = pivot_trend['saleareacode']
                 display_trend['ประเภท'] = pivot_trend['ประเภทลูกค้า']
                 
-                # บังคับเรียงคอลัมน์ปีจากซ้ายไปขวาตาม array file_names ที่เรียงจากเก่าไปใหม่แล้ว
                 for y in file_names:
                     if y in pivot_trend.columns:
                         display_trend[f'ยอดซื้อ ({y})'] = pivot_trend[y].apply(format_smart)
@@ -199,7 +195,7 @@ if uploaded_files:
         # --- TAB 2: วิเคราะห์ลูกค้า (Cash vs Credit & Breakdown by Type) ---
         with tab2:
             st.subheader("👥 การเคลื่อนไหวของลูกค้า (แยกตาม Cash / Credit และประเภทลูกค้า)")
-            st.markdown("เปรียบเทียบระหว่าง 2 ไฟล์ พร้อมสรุปสถิติจำนวนลูกค้าภาพรวมและแยกตามประเภทลูกค้า (เช่น A1, A2, B1)")
+            st.markdown("เปรียบเทียบระหว่าง 2 ไฟล์ พร้อมสรุปสถิติจำนวนลูกค้าและส่วนต่าง Cash/Credit แยกตามประเภทลูกค้า (A1, A2, B1 ฯลฯ)")
             
             if len(file_names) >= 2:
                 col_f1, col_f2 = st.columns(2)
@@ -266,7 +262,7 @@ if uploaded_files:
                 c4.metric("📉 ลูกค้ายอดลดลง (Decline)", f"{n_decline:,} ราย")
                 
                 st.markdown("---")
-                st.subheader("📊 สรุปจำนวนลูกค้าและการเคลื่อนไหว แยกตามประเภทลูกค้า (Customer Type Breakdown)")
+                st.subheader("📊 สรุปจำนวนลูกค้าและการเคลื่อนไหว แยกตามประเภทลูกค้า (พร้อมส่วนต่าง Cash vs Credit)")
                 
                 type_summary = merged_cust.groupby('ประเภทลูกค้า').agg(
                     total_cust=('custcode', 'count'),
@@ -274,6 +270,8 @@ if uploaded_files:
                     lost_cust=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าที่หายไป (Churned)')),
                     growth_cust=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าเติบโตขึ้น (Growth)')),
                     decline_cust=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้ายอดลดลง (Decline)')),
+                    diff_cash_sum=('Diff_Cash', 'sum'),
+                    diff_credit_sum=('Diff_Credit', 'sum'),
                     total_rev=('ยอดซื้อปีปัจจุบัน', 'sum')
                 ).reset_index()
                 
@@ -286,6 +284,8 @@ if uploaded_files:
                 display_type_summary['ลูกค้าที่หายไป'] = type_summary['lost_cust']
                 display_type_summary['เติบโตขึ้น'] = type_summary['growth_cust']
                 display_type_summary['ยอดลดลง'] = type_summary['decline_cust']
+                display_type_summary['Cash ส่วนต่าง (Δ)'] = type_summary['diff_cash_sum'].apply(format_smart)
+                display_type_summary['Credit ส่วนต่าง (Δ)'] = type_summary['diff_credit_sum'].apply(format_smart)
                 display_type_summary['ยอดรวมปีปัจจุบัน'] = type_summary['total_rev'].apply(format_smart)
                 
                 st.dataframe(display_type_summary, use_container_width=True)
