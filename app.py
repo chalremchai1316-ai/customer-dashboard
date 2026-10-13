@@ -45,17 +45,17 @@ if uploaded_files:
     if missing_cols:
         st.error(f"⚠️ ไฟล์ข้อมูลของคุณขาดคอลัมน์สำคัญเหล่านี้: {missing_cols}")
     else:
-        # --- 2. ตัวกรองข้อมูล (Filters) ---
-        st.sidebar.header("🔍 2. ตัวกรองข้อมูลหลัก (Link ถึงกัน)")
+        # --- 2. ตัวกรองข้อมูล (Filters - แบบพิมพ์ค้นหาได้ st.multiselect) ---
+        st.sidebar.header("🔍 2. ตัวกรองข้อมูลหลัก (พิมพ์ค้นหาได้)")
         
         branches = sorted([str(x) for x in df_all['saleareacode'].dropna().unique()])
-        selected_branches = st.sidebar.multiselect("เลือกสาขา (Sales Area)", branches, default=branches)
+        selected_branches = st.sidebar.multiselect("เลือกสาขา (Sales Area - พิมพ์ค้นหาได้)", branches, default=branches)
         
         cust_types = sorted([str(x) for x in df_all['ประเภทลูกค้า'].dropna().unique()])
-        selected_cust_types = st.sidebar.multiselect("ประเภทลูกค้า", cust_types, default=cust_types)
+        selected_cust_types = st.sidebar.multiselect("ประเภทลูกค้า (พิมพ์ค้นหาได้)", cust_types, default=cust_types)
         
         product_groups = sorted([str(x) for x in df_all['กลุ่มสินค้า'].dropna().unique()])
-        selected_prod_groups = st.sidebar.multiselect("กลุ่มสินค้า", product_groups, default=product_groups)
+        selected_prod_groups = st.sidebar.multiselect("กลุ่มสินค้า (พิมพ์ค้นหาได้)", product_groups, default=product_groups)
         
         # กรองข้อมูลภาพรวม
         df_filtered = df_all.copy()
@@ -69,10 +69,12 @@ if uploaded_files:
         # --- 3. แสดงเนื้อหาหลัก (Dashboard Tabs) ---
         tab1, tab2, tab3, tab4 = st.tabs([
             "📈 ภาพรวม & แยก Cash/Credit รายปี (3 ปี)", 
-            "👥 วิเคราะห์ลูกค้าเชิงลึก (New/Lost/Growth)", 
+            "👥 วิเคราะห์ลูกค้า (Cash vs Credit)", 
             "📦 วิเคราะห์กลุ่มสินค้า (Cash vs Credit)", 
             "🏢 เปรียบเทียบรายสาขา (Cash vs Credit)"
         ])
+        
+        file_names = list(dfs_dict.keys())
         
         # --- TAB 1: ภาพรวม & แยก Cash/Credit รายปี ---
         with tab1:
@@ -87,11 +89,9 @@ if uploaded_files:
             col3.metric("ยอดสินเชื่อ (CREDIT)", format_smart(total_credit))
             
             st.divider()
-            st.subheader("📅 ภาพรวมรายปี แยกตาม Cash และ Credit (รองรับ 3 ปี หรือมากกว่า)")
+            st.subheader("📅 ภาพรวมรายปี แยกตาม Cash และ Credit")
             
             file_summary = []
-            file_names = list(dfs_dict.keys())
-            
             for fname, f_df in dfs_dict.items():
                 f_sub = f_df.copy()
                 if selected_branches:
@@ -118,11 +118,8 @@ if uploaded_files:
             
             st.divider()
             st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (เลือกปีที่ต้องการดูได้)")
-            
-            # เพิ่มตัวเลือกให้เลือกปี/ไฟล์สำหรับตาราง Top 20 โดยเฉพาะ
             selected_top_file = st.selectbox("เลือกปี/ไฟล์ที่ต้องการจัดอันดับ Top 20:", file_names, key="top_20_file")
             
-            # ดึงข้อมูลจากไฟล์ที่เลือกมา Filter ต่อตาม Sidebar หลัก
             df_top_target = dfs_dict[selected_top_file].copy()
             if selected_branches:
                 df_top_target = df_top_target[df_top_target['saleareacode'].astype(str).isin(selected_branches)]
@@ -140,10 +137,10 @@ if uploaded_files:
             
             st.dataframe(top_customers[['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า', 'CASH', 'CREDIT', 'รวมยอดซื้อ']], use_container_width=True)
 
-        # --- TAB 2: วิเคราะห์ลูกค้าเชิงลึก (New/Lost/Growth) ---
+        # --- TAB 2: วิเคราะห์ลูกค้า (Cash vs Credit) ---
         with tab2:
-            st.subheader("👥 การเคลื่อนไหวของลูกค้า (Customer Movement & Summary)")
-            st.markdown("เลือก 2 ไฟล์เพื่อเทียบการเติบโต พร้อมสรุปสถิติจำนวนลูกค้าตาม Filter ที่เลือก")
+            st.subheader("👥 การเคลื่อนไหวของลูกค้า (แยกตาม Cash / Credit)")
+            st.markdown("เปรียบเทียบระหว่าง 2 ไฟล์ พร้อมวิเคราะห์เจาะลึกยอด Cash และ Credit ของลูกค้าแต่ละสถานะ")
             
             if len(file_names) >= 2:
                 col_f1, col_f2 = st.columns(2)
@@ -165,8 +162,12 @@ if uploaded_files:
                     df_base_raw = df_base_raw[df_base_raw['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
                     df_comp_raw = df_comp_raw[df_comp_raw['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
 
-                base_cust = df_base_raw.groupby(['custcode', 'custname'])['รวม'].sum().reset_index().rename(columns={'รวม': 'ยอดซื้อปีก่อน'})
-                comp_cust = df_comp_raw.groupby(['custcode', 'custname'])['รวม'].sum().reset_index().rename(columns={'รวม': 'ยอดซื้อปีปัจจุบัน'})
+                base_cust = df_base_raw.groupby(['custcode', 'custname'])[['CASH', 'CREDIT', 'รวม']].sum().reset_index().rename(
+                    columns={'CASH': 'Cash_ปีก่อน', 'CREDIT': 'Credit_ปีก่อน', 'รวม': 'ยอดซื้อปีก่อน'}
+                )
+                comp_cust = df_comp_raw.groupby(['custcode', 'custname'])[['CASH', 'CREDIT', 'รวม']].sum().reset_index().rename(
+                    columns={'CASH': 'Cash_ปัจจุบัน', 'CREDIT': 'Credit_ปัจจุบัน', 'รวม': 'ยอดซื้อปีปัจจุบัน'}
+                )
                 
                 merged_cust = pd.merge(base_cust, comp_cust, on=['custcode', 'custname'], how='outer').fillna(0)
                 
@@ -183,17 +184,9 @@ if uploaded_files:
                 merged_cust['สถานะลูกค้า'] = merged_cust.apply(classify_customer, axis=1)
                 merged_cust['ผลต่างยอดซื้อ'] = merged_cust['ยอดซื้อปีปัจจุบัน'] - merged_cust['ยอดซื้อปีก่อน']
                 
-                def calc_growth(row):
-                    prev = row['ยอดซื้อปีก่อน']
-                    curr = row['ยอดซื้อปีปัจจุบัน']
-                    if prev > 0:
-                        return ((curr - prev) / prev) * 100
-                    elif curr > 0:
-                        return 100.0
-                    else:
-                        return 0.0
-
-                merged_cust['% Growth'] = merged_cust.apply(calc_growth, axis=1)
+                # คำนวณส่วนต่าง Cash และ Credit
+                merged_cust['Diff_Cash'] = merged_cust['Cash_ปัจจุบัน'] - merged_cust['Cash_ปีก่อน']
+                merged_cust['Diff_Credit'] = merged_cust['Credit_ปัจจุบัน'] - merged_cust['Credit_ปีก่อน']
                 
                 n_new = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าใหม่ (New)'])
                 n_lost = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าที่หายไป (Churned)'])
@@ -217,13 +210,18 @@ if uploaded_files:
                     display_df = merged_cust.copy()
                     
                 display_df = display_df.sort_values(by='ผลต่างยอดซื้อ', ascending=False)
-                display_df['ยอดปีก่อน'] = display_df['ยอดซื้อปีก่อน'].apply(format_smart)
-                display_df['ยอดปีปัจจุบัน'] = display_df['ยอดซื้อปีปัจจุบัน'].apply(format_smart)
-                display_df['ผลต่างยอด'] = display_df['ผลต่างยอดซื้อ'].apply(format_smart)
-                display_df['% Growth'] = display_df['% Growth'].map('{:,.2f}%'.format)
                 
-                final_cols = ['custcode', 'custname', 'สถานะลูกค้า', 'ยอดปีก่อน', 'ยอดปีปัจจุบัน', 'ผลต่างยอด', '% Growth']
-                st.dataframe(display_df[final_cols], use_container_width=True)
+                display_cust_table = pd.DataFrame()
+                display_cust_table['รหัสลูกค้า'] = display_df['custcode']
+                display_cust_table['ชื่อลูกค้า'] = display_df['custname']
+                display_cust_table['สถานะลูกค้า'] = display_df['สถานะลูกค้า']
+                display_cust_table['Cash (ปีก่อน -> ปัจจุบัน)'] = display_df['Cash_ปีก่อน'].apply(format_smart) + " -> " + display_df['Cash_ปัจจุบัน'].apply(format_smart)
+                display_cust_table['Cash ส่วนต่าง (Δ)'] = display_df['Diff_Cash'].apply(format_smart)
+                display_cust_table['Credit (ปีก่อน -> ปัจจุบัน)'] = display_df['Credit_ปีก่อน'].apply(format_smart) + " -> " + display_df['Credit_ปัจจุบัน'].apply(format_smart)
+                display_cust_table['Credit ส่วนต่าง (Δ)'] = display_df['Diff_Credit'].apply(format_smart)
+                display_cust_table['ยอดรวมส่วนต่าง'] = display_df['ผลต่างยอดซื้อ'].apply(format_smart)
+                
+                st.dataframe(display_cust_table, use_container_width=True)
             else:
                 st.info("💡 กรุณาอัปโหลดไฟล์ CSV อย่างน้อย 2 ไฟล์ขึ้นไป เพื่อเปิดใช้งานฟังก์ชันวิเคราะห์เปรียบเทียบ")
 
