@@ -90,6 +90,8 @@ if uploaded_files:
             st.subheader("📅 ภาพรวมรายปี แยกตาม Cash และ Credit (รองรับ 3 ปี หรือมากกว่า)")
             
             file_summary = []
+            file_names = list(dfs_dict.keys())
+            
             for fname, f_df in dfs_dict.items():
                 f_sub = f_df.copy()
                 if selected_branches:
@@ -105,9 +107,6 @@ if uploaded_files:
                 
                 file_summary.append({
                     'ชื่อไฟล์ / ปี': fname, 
-                    'CASH (Raw)': s_cash,
-                    'CREDIT (Raw)': s_credit,
-                    'ยอดรวม (Raw)': s_rev,
                     'CASH': format_smart(s_cash),
                     'CREDIT': format_smart(s_credit),
                     'ยอดขายรวมสุทธิ': format_smart(s_rev)
@@ -115,14 +114,30 @@ if uploaded_files:
             
             df_file_sum = pd.DataFrame(file_summary)
             if not df_file_sum.empty:
-                st.dataframe(df_file_sum[['ชื่อไฟล์ / ปี', 'CASH', 'CREDIT', 'ยอดขายรวมสุทธิ']], use_container_width=True)
+                st.dataframe(df_file_sum, use_container_width=True)
             
-            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก")
-            top_customers = df_filtered.groupby(['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า'])[['CASH', 'CREDIT', 'รวม']].sum().reset_index()
+            st.divider()
+            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (เลือกปีที่ต้องการดูได้)")
+            
+            # เพิ่มตัวเลือกให้เลือกปี/ไฟล์สำหรับตาราง Top 20 โดยเฉพาะ
+            selected_top_file = st.selectbox("เลือกปี/ไฟล์ที่ต้องการจัดอันดับ Top 20:", file_names, key="top_20_file")
+            
+            # ดึงข้อมูลจากไฟล์ที่เลือกมา Filter ต่อตาม Sidebar หลัก
+            df_top_target = dfs_dict[selected_top_file].copy()
+            if selected_branches:
+                df_top_target = df_top_target[df_top_target['saleareacode'].astype(str).isin(selected_branches)]
+            if selected_cust_types:
+                df_top_target = df_top_target[df_top_target['ประเภทลูกค้า'].astype(str).isin(selected_cust_types)]
+            if selected_prod_groups:
+                df_top_target = df_top_target[df_top_target['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
+            
+            top_customers = df_top_target.groupby(['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า'])[['CASH', 'CREDIT', 'รวม']].sum().reset_index()
             top_customers = top_customers.sort_values(by='รวม', ascending=False).head(20)
+            
             top_customers['CASH'] = top_customers['CASH'].apply(format_smart)
             top_customers['CREDIT'] = top_customers['CREDIT'].apply(format_smart)
             top_customers['รวมยอดซื้อ'] = top_customers['รวม'].apply(format_smart)
+            
             st.dataframe(top_customers[['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า', 'CASH', 'CREDIT', 'รวมยอดซื้อ']], use_container_width=True)
 
         # --- TAB 2: วิเคราะห์ลูกค้าเชิงลึก (New/Lost/Growth) ---
@@ -130,13 +145,12 @@ if uploaded_files:
             st.subheader("👥 การเคลื่อนไหวของลูกค้า (Customer Movement & Summary)")
             st.markdown("เลือก 2 ไฟล์เพื่อเทียบการเติบโต พร้อมสรุปสถิติจำนวนลูกค้าตาม Filter ที่เลือก")
             
-            file_names = list(dfs_dict.keys())
             if len(file_names) >= 2:
                 col_f1, col_f2 = st.columns(2)
                 with col_f1:
-                    base_file_name = st.selectbox("เลือกไฟล์ฐานเดิม (ปีก่อน)", file_names, index=0)
+                    base_file_name = st.selectbox("เลือกไฟล์ฐานเดิม (ปีก่อน)", file_names, index=0, key="t2_base")
                 with col_f2:
-                    comp_file_name = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=1 if len(file_names)>1 else 0)
+                    comp_file_name = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=1 if len(file_names)>1 else 0, key="t2_comp")
                 
                 df_base_raw = dfs_dict[base_file_name]
                 df_comp_raw = dfs_dict[comp_file_name]
@@ -217,7 +231,6 @@ if uploaded_files:
         with tab3:
             st.subheader("📦 วิเคราะห์กลุ่มสินค้า แยกตาม Cash และ Credit (เปรียบเทียบ 2 ไฟล์)")
             
-            file_names = list(dfs_dict.keys())
             if len(file_names) >= 2:
                 col_p1, col_p2 = st.columns(2)
                 with col_p1:
@@ -244,14 +257,12 @@ if uploaded_files:
                 
                 merged_grp = pd.merge(grp_base, grp_comp, on='กลุ่มสินค้า', how='outer').fillna(0)
                 
-                # คำนวณส่วนต่าง Cash และ Credit
                 merged_grp['Diff_Cash'] = merged_grp['Cash_ปัจจุบัน'] - merged_grp['Cash_ปีก่อน']
                 merged_grp['Diff_Credit'] = merged_grp['Credit_ปัจจุบัน'] - merged_grp['Credit_ปีก่อน']
                 merged_grp['Diff_Total'] = merged_grp['รวม_ปัจจุบัน'] - merged_grp['รวม_ปีก่อน']
                 
                 merged_grp = merged_grp.sort_values(by='รวม_ปัจจุบัน', ascending=False)
                 
-                # จัดรูปแบบแสดงผล
                 display_grp = pd.DataFrame()
                 display_grp['กลุ่มสินค้า'] = merged_grp['กลุ่มสินค้า']
                 display_grp['Cash (ปีก่อน -> ปัจจุบัน)'] = merged_grp['Cash_ปีก่อน'].apply(format_smart) + " -> " + merged_grp['Cash_ปัจจุบัน'].apply(format_smart)
@@ -268,7 +279,6 @@ if uploaded_files:
         with tab4:
             st.subheader("🏢 ผลการดำเนินงานแยกตามสาขา (Cash vs Credit แยกตามส่วนต่าง)")
             
-            file_names = list(dfs_dict.keys())
             if len(file_names) >= 2:
                 col_b1, col_b2 = st.columns(2)
                 with col_b1:
