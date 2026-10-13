@@ -74,6 +74,7 @@ if uploaded_files:
             "🏢 เปรียบเทียบรายสาขา (Cash vs Credit)"
         ])
         
+        # จัดเรียงชื่อไฟล์/ปี จากเก่าไปใหม่เสมอ (เช่น 2024 -> 2025 -> 2026)
         file_names = sorted(list(dfs_dict.keys()))
         
         # --- TAB 1: ภาพรวม & แยก Cash/Credit รายปี ---
@@ -92,7 +93,8 @@ if uploaded_files:
             st.subheader("📅 ภาพรวมรายปี แยกตาม Cash และ Credit")
             
             file_summary = []
-            for fname, f_df in dfs_dict.items():
+            for fname in file_names:
+                f_df = dfs_dict[fname]
                 f_sub = f_df.copy()
                 if selected_branches:
                     f_sub = f_sub[f_sub['saleareacode'].astype(str).isin(selected_branches)]
@@ -117,15 +119,14 @@ if uploaded_files:
                 st.dataframe(df_file_sum, use_container_width=True)
             
             st.divider()
-            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (แสดงเทรนด์ข้ามปี)")
+            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (แสดงเทรนด์ข้ามปี จากเก่าไปใหม่)")
             
             if len(file_names) >= 1:
-                # ให้เลือกไฟล์หลักสำหรับจัดอันดับ Top 20
                 selected_top_file = st.selectbox("เลือกปีหลักที่ใช้จัดอันดับ Top 20:", file_names, index=len(file_names)-1, key="top_20_file")
                 
-                # ดึงข้อมูลมาทำ Pivot รวมยอดของลูกค้าทุกไฟล์เพื่อดู Trend 3 ปี
                 all_years_cust_list = []
-                for fname, f_df in dfs_dict.items():
+                for fname in file_names:
+                    f_df = dfs_dict[fname]
                     f_sub = f_df.copy()
                     if selected_branches:
                         f_sub = f_sub[f_sub['saleareacode'].astype(str).isin(selected_branches)]
@@ -140,7 +141,6 @@ if uploaded_files:
                 
                 df_all_years = pd.concat(all_years_cust_list, ignore_index=True)
                 
-                # ทำ Pivot Table ให้แต่ละปีเป็นคอลัมน์
                 pivot_trend = df_all_years.pivot_table(
                     index=['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า'], 
                     columns='Year', 
@@ -148,19 +148,15 @@ if uploaded_files:
                     aggfunc='sum'
                 ).reset_index().fillna(0)
                 
-                # จัดอันดับ Top 20 ตามปีที่ผู้ใช้เลือก
                 if selected_top_file in pivot_trend.columns:
                     pivot_trend = pivot_trend.sort_values(by=selected_top_file, ascending=False).head(20)
                 else:
                     pivot_trend = pivot_trend.head(20)
                 
-                # สร้างฟังก์ชันบอก Trend อย่างง่าย
-                year_cols = [col for col in file_names if col in pivot_trend.columns]
-                
                 def get_trend_icon(row):
-                    if len(year_cols) >= 2:
-                        first_val = row[year_cols[0]]
-                        last_val = row[year_cols[-1]]
+                    if len(file_names) >= 2:
+                        first_val = row[file_names[0]]
+                        last_val = row[file_names[-1]]
                         if last_val > first_val:
                             return "↗ เติบโตขึ้น"
                         elif last_val < first_val:
@@ -171,15 +167,16 @@ if uploaded_files:
 
                 pivot_trend['เทรนด์ (Trend)'] = pivot_trend.apply(get_trend_icon, axis=1)
                 
-                # แปลงตัวเลขทุกคอลัมน์ปีให้อยู่ในรูป Smart Format
                 display_trend = pd.DataFrame()
                 display_trend['รหัสลูกค้า'] = pivot_trend['custcode']
                 display_trend['ชื่อลูกค้า'] = pivot_trend['custname']
                 display_trend['สาขา'] = pivot_trend['saleareacode']
                 display_trend['ประเภท'] = pivot_trend['ประเภทลูกค้า']
                 
-                for y in year_cols:
-                    display_trend[f'ยอดซื้อ ({y})'] = pivot_trend[y].apply(format_smart)
+                # วนลูปเรียงตามลำดับปีจากเก่าไปใหม่เป๊ะๆ
+                for y in file_names:
+                    if y in pivot_trend.columns:
+                        display_trend[f'ยอดซื้อ ({y})'] = pivot_trend[y].apply(format_smart)
                 
                 display_trend['เทรนด์ภาพรวม'] = pivot_trend['เทรนด์ (Trend)']
                 
