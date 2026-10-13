@@ -74,7 +74,7 @@ if uploaded_files:
             "🏢 เปรียบเทียบรายสาขา (Cash vs Credit)"
         ])
         
-        file_names = list(dfs_dict.keys())
+        file_names = sorted(list(dfs_dict.keys()))
         
         # --- TAB 1: ภาพรวม & แยก Cash/Credit รายปี ---
         with tab1:
@@ -117,25 +117,75 @@ if uploaded_files:
                 st.dataframe(df_file_sum, use_container_width=True)
             
             st.divider()
-            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (เลือกปีที่ต้องการดูได้)")
-            selected_top_file = st.selectbox("เลือกปี/ไฟล์ที่ต้องการจัดอันดับ Top 20:", file_names, key="top_20_file")
+            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (แสดงเทรนด์ข้ามปี)")
             
-            df_top_target = dfs_dict[selected_top_file].copy()
-            if selected_branches:
-                df_top_target = df_top_target[df_top_target['saleareacode'].astype(str).isin(selected_branches)]
-            if selected_cust_types:
-                df_top_target = df_top_target[df_top_target['ประเภทลูกค้า'].astype(str).isin(selected_cust_types)]
-            if selected_prod_groups:
-                df_top_target = df_top_target[df_top_target['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
-            
-            top_customers = df_top_target.groupby(['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า'])[['CASH', 'CREDIT', 'รวม']].sum().reset_index()
-            top_customers = top_customers.sort_values(by='รวม', ascending=False).head(20)
-            
-            top_customers['CASH'] = top_customers['CASH'].apply(format_smart)
-            top_customers['CREDIT'] = top_customers['CREDIT'].apply(format_smart)
-            top_customers['รวมยอดซื้อ'] = top_customers['รวม'].apply(format_smart)
-            
-            st.dataframe(top_customers[['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า', 'CASH', 'CREDIT', 'รวมยอดซื้อ']], use_container_width=True)
+            if len(file_names) >= 1:
+                # ให้เลือกไฟล์หลักสำหรับจัดอันดับ Top 20
+                selected_top_file = st.selectbox("เลือกปีหลักที่ใช้จัดอันดับ Top 20:", file_names, index=len(file_names)-1, key="top_20_file")
+                
+                # ดึงข้อมูลมาทำ Pivot รวมยอดของลูกค้าทุกไฟล์เพื่อดู Trend 3 ปี
+                all_years_cust_list = []
+                for fname, f_df in dfs_dict.items():
+                    f_sub = f_df.copy()
+                    if selected_branches:
+                        f_sub = f_sub[f_sub['saleareacode'].astype(str).isin(selected_branches)]
+                    if selected_cust_types:
+                        f_sub = f_sub[f_sub['ประเภทลูกค้า'].astype(str).isin(selected_cust_types)]
+                    if selected_prod_groups:
+                        f_sub = f_sub[f_sub['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
+                    
+                    cust_agg = f_sub.groupby(['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า'])['รวม'].sum().reset_index()
+                    cust_agg['Year'] = fname
+                    all_years_cust_list.append(cust_agg)
+                
+                df_all_years = pd.concat(all_years_cust_list, ignore_index=True)
+                
+                # ทำ Pivot Table ให้แต่ละปีเป็นคอลัมน์
+                pivot_trend = df_all_years.pivot_table(
+                    index=['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า'], 
+                    columns='Year', 
+                    values='รวม', 
+                    aggfunc='sum'
+                ).reset_index().fillna(0)
+                
+                # จัดอันดับ Top 20 ตามปีที่ผู้ใช้เลือก
+                if selected_top_file in pivot_trend.columns:
+                    pivot_trend = pivot_trend.sort_values(by=selected_top_file, ascending=False).head(20)
+                else:
+                    pivot_trend = pivot_trend.head(20)
+                
+                # สร้างฟังก์ชันบอก Trend อย่างง่าย
+                year_cols = [col for col in file_names if col in pivot_trend.columns]
+                
+                def get_trend_icon(row):
+                    if len(year_cols) >= 2:
+                        first_val = row[year_cols[0]]
+                        last_val = row[year_cols[-1]]
+                        if last_val > first_val:
+                            return "↗ เติบโตขึ้น"
+                        elif last_val < first_val:
+                            return "↘ ลดลง"
+                        else:
+                            return "- ทรงตัว"
+                    return "-"
+
+                pivot_trend['เทรนด์ (Trend)'] = pivot_trend.apply(get_trend_icon, axis=1)
+                
+                # แปลงตัวเลขทุกคอลัมน์ปีให้อยู่ในรูป Smart Format
+                display_trend = pd.DataFrame()
+                display_trend['รหัสลูกค้า'] = pivot_trend['custcode']
+                display_trend['ชื่อลูกค้า'] = pivot_trend['custname']
+                display_trend['สาขา'] = pivot_trend['saleareacode']
+                display_trend['ประเภท'] = pivot_trend['ประเภทลูกค้า']
+                
+                for y in year_cols:
+                    display_trend[f'ยอดซื้อ ({y})'] = pivot_trend[y].apply(format_smart)
+                
+                display_trend['เทรนด์ภาพรวม'] = pivot_trend['เทรนด์ (Trend)']
+                
+                st.dataframe(display_trend, use_container_width=True)
+            else:
+                st.info("💡 กรุณาอัปโหลดไฟล์ข้อมูลอย่างน้อย 1 ไฟล์")
 
         # --- TAB 2: วิเคราะห์ลูกค้า (Cash vs Credit & Breakdown by Type) ---
         with tab2:
@@ -193,7 +243,6 @@ if uploaded_files:
                 merged_cust['Diff_Cash'] = merged_cust['Cash_ปัจจุบัน'] - merged_cust['Cash_ปีก่อน']
                 merged_cust['Diff_Credit'] = merged_cust['Credit_ปัจจุบัน'] - merged_cust['Credit_ปีก่อน']
                 
-                # --- สรุปตัวเลขภาพรวม ---
                 n_new = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าใหม่ (New)'])
                 n_lost = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าที่หายไป (Churned)'])
                 n_growth = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าเติบโตขึ้น (Growth)'])
@@ -207,7 +256,6 @@ if uploaded_files:
                 c3.metric("📈 ลูกค้าเติบโตขึ้น (Growth)", f"{n_growth:,} ราย")
                 c4.metric("📉 ลูกค้ายอดลดลง (Decline)", f"{n_decline:,} ราย")
                 
-                # --- สรุปแยกตามกลุ่ม/ประเภทลูกค้า (แบบปลอดภัยป้องกัน KeyError) ---
                 st.markdown("---")
                 st.subheader("📊 สรุปจำนวนลูกค้าและการเคลื่อนไหว แยกตามประเภทลูกค้า (Customer Type Breakdown)")
                 
