@@ -208,7 +208,6 @@ if uploaded_files:
                 else:
                     display_df = merged_cust.copy()
                     
-                # จัดเรียงตามผลต่างยอดซื้อจริง (จากมากไปน้อย) ให้ถูกต้องเสมอ
                 display_df = display_df.sort_values(by='ผลต่างยอดซื้อ', ascending=False)
                 
                 display_cust_table = pd.DataFrame()
@@ -259,7 +258,7 @@ if uploaded_files:
                 merged_grp['Diff_Credit'] = merged_grp['Credit_ปัจจุบัน'] - merged_grp['Credit_ปีก่อน']
                 merged_grp['Diff_Total'] = merged_grp['รวม_ปัจจุบัน'] - merged_grp['รวม_ปีก่อน']
                 
-                # FIX: จัดเรียงตามยอดรวมส่วนต่าง (Diff_Total) จากมากไปน้อย (บวกมากสุด -> ติดลบมากสุด)
+                # จัดเรียงตาม Diff_Total จากมากไปน้อย (บวกสุดลงไปติดลบสุด)
                 merged_grp = merged_grp.sort_values(by='Diff_Total', ascending=False)
                 
                 display_grp = pd.DataFrame()
@@ -308,7 +307,7 @@ if uploaded_files:
                 merged_branch['Diff_Credit'] = merged_branch['Credit_ปัจจุบัน'] - merged_branch['Credit_ปีก่อน']
                 merged_branch['Diff_Total'] = merged_branch['รวม_ปัจจุบัน'] - merged_branch['รวม_ปีก่อน']
                 
-                # FIX: จัดเรียงตามยอดรวมส่วนต่าง (Diff_Total) จากมากไปน้อย (บวกมากสุด -> ติดลบมากสุด)
+                # จัดเรียงตาม Diff_Total จากมากไปน้อย
                 merged_branch = merged_branch.sort_values(by='Diff_Total', ascending=False)
                 
                 display_branch = pd.DataFrame()
