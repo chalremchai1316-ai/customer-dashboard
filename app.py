@@ -184,7 +184,6 @@ if uploaded_files:
                 merged_cust['สถานะลูกค้า'] = merged_cust.apply(classify_customer, axis=1)
                 merged_cust['ผลต่างยอดซื้อ'] = merged_cust['ยอดซื้อปีปัจจุบัน'] - merged_cust['ยอดซื้อปีก่อน']
                 
-                # คำนวณส่วนต่าง Cash และ Credit
                 merged_cust['Diff_Cash'] = merged_cust['Cash_ปัจจุบัน'] - merged_cust['Cash_ปีก่อน']
                 merged_cust['Diff_Credit'] = merged_cust['Credit_ปัจจุบัน'] - merged_cust['Credit_ปีก่อน']
                 
@@ -209,6 +208,7 @@ if uploaded_files:
                 else:
                     display_df = merged_cust.copy()
                     
+                # Sort จากผลต่างยอดซื้อจริง (มากไปน้อย)
                 display_df = display_df.sort_values(by='ผลต่างยอดซื้อ', ascending=False)
                 
                 display_cust_table = pd.DataFrame()
@@ -259,6 +259,7 @@ if uploaded_files:
                 merged_grp['Diff_Credit'] = merged_grp['Credit_ปัจจุบัน'] - merged_grp['Credit_ปีก่อน']
                 merged_grp['Diff_Total'] = merged_grp['รวม_ปัจจุบัน'] - merged_grp['รวม_ปีก่อน']
                 
+                # Sort ตามยอดรวมปัจจุบันจากมากไปน้อย เพื่อให้เรียงลำดับถูกต้องเสมอ
                 merged_grp = merged_grp.sort_values(by='รวม_ปัจจุบัน', ascending=False)
                 
                 display_grp = pd.DataFrame()
@@ -307,6 +308,7 @@ if uploaded_files:
                 merged_branch['Diff_Credit'] = merged_branch['Credit_ปัจจุบัน'] - merged_branch['Credit_ปีก่อน']
                 merged_branch['Diff_Total'] = merged_branch['รวม_ปัจจุบัน'] - merged_branch['รวม_ปีก่อน']
                 
+                # Sort ตามยอดรวมปัจจุบันจากมากไปน้อย
                 merged_branch = merged_branch.sort_values(by='รวม_ปัจจุบัน', ascending=False)
                 
                 display_branch = pd.DataFrame()
