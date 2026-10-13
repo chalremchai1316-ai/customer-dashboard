@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import re
 
 st.set_page_config(page_title="Executive Dashboard & Business Planning 2027", layout="wide")
 
@@ -18,6 +19,17 @@ def format_smart(val):
         return f"{val / 1_000:,.2f} K"
     else:
         return f"{val:,.2f}"
+
+# --- ฟังก์ชันช่วยเรียงชื่อไฟล์ตามปี พ.ศ. หรือ ค.ศ. (เช่น 2024 -> 2025 -> 2026) ---
+def sort_file_names(file_list):
+    def extract_year(filename):
+        # ค้นหาตัวเลข 4 หลักที่เป็นปี (เช่น 2024, 2025, 2026 หรือ 2567, 2568) ในชื่อไฟล์
+        found = re.findall(r'(20\d{2}|19\d{2}|25\d{2})', str(filename))
+        if found:
+            return int(found[0])
+        return 0
+    # เรียงตามปีที่พบจากน้อยไปมาก ถ้าไม่พบให้เรียงตามชื่อตัวอักษรปกติ
+    return sorted(file_list, key=lambda x: (extract_year(x) == 0, extract_year(x), str(x)))
 
 # --- 1. ส่วนอัปโหลดไฟล์ข้อมูล ---
 st.sidebar.header("📁 1. อัปโหลดข้อมูล (CSV)")
@@ -74,8 +86,8 @@ if uploaded_files:
             "🏢 เปรียบเทียบรายสาขา (Cash vs Credit)"
         ])
         
-        # จัดเรียงชื่อไฟล์/ปี จากเก่าไปใหม่เสมอ (บังคับเรียงตามตัวอักษรชื่อไฟล์ เช่น 2024 -> 2025 -> 2026)
-        file_names = sorted(list(dfs_dict.keys()), key=lambda x: str(x))
+        # ใช้ฟังก์ชันจัดเรียงปีจากเก่าไปใหม่เป๊ะๆ (2024 -> 2025 -> 2026)
+        file_names = sort_file_names(list(dfs_dict.keys()))
         
         # --- TAB 1: ภาพรวม & แยก Cash/Credit รายปี ---
         with tab1:
@@ -90,7 +102,7 @@ if uploaded_files:
             col3.metric("ยอดสินเชื่อ (CREDIT)", format_smart(total_credit))
             
             st.divider()
-            st.subheader("📅 ภาพรวมรายปี แยกตาม Cash และ Credit")
+            st.subheader("📅 ภาพรวมรายปี แยกตาม Cash และ Credit (เรียงจากปีเก่าไปปีใหม่)")
             
             file_summary = []
             for fname in file_names:
@@ -119,7 +131,7 @@ if uploaded_files:
                 st.dataframe(df_file_sum, use_container_width=True)
             
             st.divider()
-            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (เรียงเทรนด์จากปีเก่าไปปีใหม่)")
+            st.subheader("🏆 ลูกค้าที่มียอดซื้อสูงสุด 20 อันดับแรก (เรียงเทรนด์จากปี 2024 ไป 2026)")
             
             if len(file_names) >= 1:
                 selected_top_file = st.selectbox("เลือกปีหลักที่ใช้จัดอันดับ Top 20:", file_names, index=len(file_names)-1, key="top_20_file")
@@ -173,7 +185,7 @@ if uploaded_files:
                 display_trend['สาขา'] = pivot_trend['saleareacode']
                 display_trend['ประเภท'] = pivot_trend['ประเภทลูกค้า']
                 
-                # บังคับเรียงคอลัมน์ปีจากซ้ายไปขวาตามลำดับ file_names ที่เรียบ 2024 -> 2025 -> 2026 เป๊ะๆ
+                # บังคับเรียงคอลัมน์ปีจากซ้ายไปขวาตาม array file_names ที่เรียงจากเก่าไปใหม่แล้ว
                 for y in file_names:
                     if y in pivot_trend.columns:
                         display_trend[f'ยอดซื้อ ({y})'] = pivot_trend[y].apply(format_smart)
@@ -194,7 +206,7 @@ if uploaded_files:
                 with col_f1:
                     base_file_name = st.selectbox("เลือกไฟล์ฐานเดิม (ปีก่อน)", file_names, index=0, key="t2_base")
                 with col_f2:
-                    comp_file_name = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=1 if len(file_names)>1 else 0, key="t2_comp")
+                    comp_file_name = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=len(file_names)-1, key="t2_comp")
                 
                 df_base_raw = dfs_dict[base_file_name]
                 df_comp_raw = dfs_dict[comp_file_name]
@@ -312,7 +324,7 @@ if uploaded_files:
                 with col_p1:
                     p_base = st.selectbox("เลือกไฟล์ตั้งต้น (ปีก่อน)", file_names, index=0, key="p_base")
                 with col_p2:
-                    p_comp = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=1 if len(file_names)>1 else 0, key="p_comp")
+                    p_comp = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=len(file_names)-1, key="p_comp")
                 
                 df_pb = dfs_dict[p_base]
                 df_pc = dfs_dict[p_comp]
@@ -360,7 +372,7 @@ if uploaded_files:
                 with col_b1:
                     b_base = st.selectbox("เลือกไฟล์ตั้งต้น (ปีก่อน)", file_names, index=0, key="b_base")
                 with col_b2:
-                    b_comp = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=1 if len(file_names)>1 else 0, key="b_comp")
+                    b_comp = st.selectbox("เลือกไฟล์เปรียบเทียบ (ปีปัจจุบัน)", file_names, index=len(file_names)-1, key="b_comp")
                 
                 df_bb = dfs_dict[b_base]
                 df_bc = dfs_dict[b_comp]
