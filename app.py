@@ -40,7 +40,7 @@ if uploaded_files:
         st.sidebar.header("🔍 2. ตัวกรองข้อมูล (Filters)")
         
         # กรองสาขา
-        branches = ['ทุกสาขา'] + sorted(df_all['saleareacode'].astype(str).unique().tolist())
+        branches = ['ทุกสาขา'] + sorted([str(x) for x in df_all['saleareacode'].dropna().unique()])
         selected_branch = st.sidebar.selectbox("เลือกสาขา (Sales Area)", branches)
         
         # กรองปี (ถ้ามีคอลัมน์ปี หรือพิจารณาจากชื่อไฟล์/ข้อมูล หากไม่มีให้ข้าม)
