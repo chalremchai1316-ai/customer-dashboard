@@ -152,12 +152,15 @@ if uploaded_files:
                 status_filter = st.selectbox("กรองดูตามสถานะลูกค้า:", ['ทั้งหมด', 'ลูกค้าใหม่ (New)', 'ลูกค้าที่หายไป (Churned)', 'ลูกค้าเติบโตขึ้น (Growth)', 'ลูกค้ายอดลดลง (Decline)'])
                 
                 if status_filter != 'ทั้งหมด':
-                    display_df = merged_cust[merged_cust['สถานะลูกค้า'] == status_filter]
+                    display_df = merged_cust[merged_cust['สถานะลูกค้า'] == status_filter].copy()
                 else:
-                    display_df = merged_cust
+                    display_df = merged_cust.copy()
                     
+                # จัดเรียงข้อมูลจากผลต่างยอดซื้อจริงก่อนเลือกแสดงคอลัมน์
+                display_df = display_df.sort_values(by='ผลต่างยอดซื้อ', ascending=False)
+                
                 final_display_cols = ['custcode', 'custname', 'สถานะลูกค้า', 'ยอดปีก่อน (Mb)', 'ยอดปีปัจจุบัน (Mb)', 'ผลต่าง (Mb)', '% Growth Display']
-                st.dataframe(display_df[final_display_cols].sort_values(by='ผลต่างยอดซื้อ', ascending=False), use_container_width=True)
+                st.dataframe(display_df[final_display_cols], use_container_width=True)
             else:
                 st.info("💡 กรุณาอัปโหลดไฟล์ CSV อย่างน้อย 2 ไฟล์ขึ้นไป เพื่อเปิดใช้งานฟังก์ชันวิเคราะห์ลูกค้าใหม่/ลูกค้าหาย")
 
