@@ -137,10 +137,10 @@ if uploaded_files:
             
             st.dataframe(top_customers[['custcode', 'custname', 'saleareacode', 'ประเภทลูกค้า', 'CASH', 'CREDIT', 'รวมยอดซื้อ']], use_container_width=True)
 
-        # --- TAB 2: วิเคราะห์ลูกค้า (Cash vs Credit) ---
+        # --- TAB 2: วิเคราะห์ลูกค้า (Cash vs Credit & Breakdown by Type) ---
         with tab2:
-            st.subheader("👥 การเคลื่อนไหวของลูกค้า (แยกตาม Cash / Credit)")
-            st.markdown("เปรียบเทียบระหว่าง 2 ไฟล์ พร้อมวิเคราะห์เจาะลึกยอด Cash และ Credit ของลูกค้าแต่ละสถานะ")
+            st.subheader("👥 การเคลื่อนไหวของลูกค้า (แยกตาม Cash / Credit และประเภทลูกค้า)")
+            st.markdown("เปรียบเทียบระหว่าง 2 ไฟล์ พร้อมสรุปสถิติจำนวนลูกค้าภาพรวมและแยกตามประเภทลูกค้า (เช่น A1, A2, B1)")
             
             if len(file_names) >= 2:
                 col_f1, col_f2 = st.columns(2)
@@ -162,6 +162,10 @@ if uploaded_files:
                     df_base_raw = df_base_raw[df_base_raw['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
                     df_comp_raw = df_comp_raw[df_comp_raw['กลุ่มสินค้า'].astype(str).isin(selected_prod_groups)]
 
+                # ดึงประเภทลูกค้าติดมาด้วยโดยใช้การ mode หรือ first จากข้อมูลทั้งสองฝั่ง
+                cust_type_map_base = df_base_raw.groupby('custcode')['ประเภทลูกค้า'].first().to_dict()
+                cust_type_map_comp = df_comp_raw.groupby('custcode')['ประเภทลูกค้า'].first().to_dict()
+                
                 base_cust = df_base_raw.groupby(['custcode', 'custname'])[['CASH', 'CREDIT', 'รวม']].sum().reset_index().rename(
                     columns={'CASH': 'Cash_ปีก่อน', 'CREDIT': 'Credit_ปีก่อน', 'รวม': 'ยอดซื้อปีก่อน'}
                 )
@@ -170,6 +174,10 @@ if uploaded_files:
                 )
                 
                 merged_cust = pd.merge(base_cust, comp_cust, on=['custcode', 'custname'], how='outer').fillna(0)
+                
+                # แมปประเภทลูกค้า (ถ้าปีปัจจุบันไม่มีให้เอาจากปีก่อน)
+                merged_cust['ประเภทลูกค้า'] = merged_cust['custcode'].map(cust_type_map_comp)
+                merged_cust['ประเภทลูกค้า'] = merged_cust['ประเภทลูกค้า'].fillna(merged_cust['custcode'].map(cust_type_map_base)).fillna('ไม่ระบุ')
                 
                 def classify_customer(row):
                     if row['ยอดซื้อปีก่อน'] == 0:
@@ -187,21 +195,41 @@ if uploaded_files:
                 merged_cust['Diff_Cash'] = merged_cust['Cash_ปัจจุบัน'] - merged_cust['Cash_ปีก่อน']
                 merged_cust['Diff_Credit'] = merged_cust['Credit_ปัจจุบัน'] - merged_cust['Credit_ปีก่อน']
                 
+                # --- สรุปตัวเลขภาพรวม ---
                 n_new = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าใหม่ (New)'])
                 n_lost = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าที่หายไป (Churned)'])
                 n_growth = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้าเติบโตขึ้น (Growth)'])
                 n_decline = len(merged_cust[merged_cust['สถานะลูกค้า'] == 'ลูกค้ายอดลดลง (Decline)'])
                 total_active_cust = len(merged_cust)
                 
-                st.markdown(f"**📌 สรุปสถิติลูกค้าภายใต้ Filter ที่เลือก (รวมทั้งหมด {total_active_cust} ราย)**")
+                st.markdown(f"**📌 สรุปสถิติลูกค้าภาพรวม (รวมทั้งหมด {total_active_cust} ราย)**")
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("🟢 ลูกค้าใหม่ (New)", f"{n_new:,} ราย")
                 c2.metric("🔴 ลูกค้าที่หายไป (Lost)", f"{n_lost:,} ราย")
                 c3.metric("📈 ลูกค้าเติบโตขึ้น (Growth)", f"{n_growth:,} ราย")
                 c4.metric("📉 ลูกค้ายอดลดลง (Decline)", f"{n_decline:,} ราย")
                 
+                # --- เพิ่มส่วนสรุปแยกตามกลุ่ม/ประเภทลูกค้า (A1, A2, B1 ฯลฯ) ---
                 st.markdown("---")
-                status_filter = st.selectbox("กรองดูตารางตามสถานะลูกค้า:", ['ทั้งหมด', 'ลูกค้าใหม่ (New)', 'ลูกค้าที่หายไป (Churned)', 'ลูกค้าเติบโตขึ้น (Growth)', 'ลูกค้ายอดลดลง (Decline)'])
+                st.subheader("📊 สรุปจำนวนลูกค้าและการเคลื่อนไหว แยกตามประเภทลูกค้า (Customer Type Breakdown)")
+                
+                type_summary = merged_cust.groupby('ประเภทลูกค้า').agg(
+                    จำนวนทั้งหมด=('custcode', 'count'),
+                    ลูกค้าใหม่=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าใหม่ (New)')),
+                    ลูกค้าที่หายไป=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าที่หายไป (Churned)')),
+                    เติบโตขึ้น=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้าเติบโตขึ้น (Growth)')),
+                    ยอดลดลง=('สถานะลูกค้า', lambda x: sum(x == 'ลูกค้ายอดลดลง (Decline)')),
+                    ยอดรวมปีปัจจุบัน=('ยอดซื้อปีปัจจุบัน', 'sum')
+                ).reset_index()
+                
+                type_summary = type_summary.sort_values(by='ยอดรวมปีปัจจุบัน', ascending=False)
+                type_summary['ยอดรวมปีปัจจุบัน (Smart)'] = type_summary['ยอดรวมปีปัจจุบัน'].apply(format_smart)
+                
+                display_type_summary = type_summary[['ประเภทลูกค้า', 'จำนวนทั้งหมด', 'ลูกค้าใหม่', 'ลูกค้าที่หายไป', 'เติบโตขึ้น', 'ยอดลดลง', 'ยอดรวมปีปัจจุบัน (Smart)']]
+                st.dataframe(display_type_summary, use_container_width=True)
+                
+                st.markdown("---")
+                status_filter = st.selectbox("กรองดูตารางรายชื่อลูกค้าตามสถานะ:", ['ทั้งหมด', 'ลูกค้าใหม่ (New)', 'ลูกค้าที่หายไป (Churned)', 'ลูกค้าเติบโตขึ้น (Growth)', 'ลูกค้ายอดลดลง (Decline)'])
                 
                 if status_filter != 'ทั้งหมด':
                     display_df = merged_cust[merged_cust['สถานะลูกค้า'] == status_filter].copy()
@@ -213,6 +241,7 @@ if uploaded_files:
                 display_cust_table = pd.DataFrame()
                 display_cust_table['รหัสลูกค้า'] = display_df['custcode']
                 display_cust_table['ชื่อลูกค้า'] = display_df['custname']
+                display_cust_table['ประเภทลูกค้า'] = display_df['ประเภทลูกค้า']
                 display_cust_table['สถานะลูกค้า'] = display_df['สถานะลูกค้า']
                 display_cust_table['Cash (ปีก่อน -> ปัจจุบัน)'] = display_df['Cash_ปีก่อน'].apply(format_smart) + " -> " + display_df['Cash_ปัจจุบัน'].apply(format_smart)
                 display_cust_table['Cash ส่วนต่าง (Δ)'] = display_df['Diff_Cash'].apply(format_smart)
@@ -258,7 +287,6 @@ if uploaded_files:
                 merged_grp['Diff_Credit'] = merged_grp['Credit_ปัจจุบัน'] - merged_grp['Credit_ปีก่อน']
                 merged_grp['Diff_Total'] = merged_grp['รวม_ปัจจุบัน'] - merged_grp['รวม_ปีก่อน']
                 
-                # จัดเรียงตาม Diff_Total จากมากไปน้อย (บวกสุดลงไปติดลบสุด)
                 merged_grp = merged_grp.sort_values(by='Diff_Total', ascending=False)
                 
                 display_grp = pd.DataFrame()
@@ -307,7 +335,6 @@ if uploaded_files:
                 merged_branch['Diff_Credit'] = merged_branch['Credit_ปัจจุบัน'] - merged_branch['Credit_ปีก่อน']
                 merged_branch['Diff_Total'] = merged_branch['รวม_ปัจจุบัน'] - merged_branch['รวม_ปีก่อน']
                 
-                # จัดเรียงตาม Diff_Total จากมากไปน้อย
                 merged_branch = merged_branch.sort_values(by='Diff_Total', ascending=False)
                 
                 display_branch = pd.DataFrame()
